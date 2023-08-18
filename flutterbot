@@ -1,0 +1,16 @@
+#/bin/bash
+
+export FLUTTERBOT_LOGIN="$(cat private/flutterbot.login)"
+export FLUTTERBOT_APPKEY="$(cat private/flutterbot.appkey)"
+
+# compile flutterbot if specified with "./flutterbot compile"
+if [ "$1" == "compile" ]; then 
+	echo compiling typescript main.ts
+	tsc main.ts
+else
+	# Run Flutterbot
+	node main.js
+fi
+
+
+# end

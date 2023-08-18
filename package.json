@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "@atproto/api": "^0.6.4",
+    "atproto": "^0.0.1",
+    "dotenv": "^16.3.1",
+    "fs": "^0.0.1-security",
+    "tracery-grammar": "^2.7.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.0"
+  }
+}
