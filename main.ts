@@ -107,8 +107,9 @@ const hourlyLove = async () => {
         'wayTheWorldIs' : [
             'how things are right now',
             'been traumatic to many people',
-            'almost unbearable to think of',
-            'really hard to even move sometimes'
+            'awful to think of',
+            'really hard to even move sometimes',
+            'always a long exhausting day'
         ],
         'makeItBetter' : [
             'fix it',
