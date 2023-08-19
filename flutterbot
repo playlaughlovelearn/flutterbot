@@ -9,7 +9,7 @@ if [ "$1" == "compile" ]; then
 	tsc main.ts
 else
 	# Run Flutterbot
-	node main.js
+	node main.js | tee flutterbot.log
 fi
 
 
