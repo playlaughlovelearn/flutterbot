@@ -25,7 +25,6 @@ const flutterbotLoop = async() => {
 
 const updateFileName = "lastHourlyUpdate";
 const hourlyLove = async () => {
-
     const lastUpdate = fs.readFileSync(updateFileName, 'utf-8');
     
     const lastUpdateTime_ms: number  = +lastUpdate;
@@ -154,8 +153,6 @@ const hourlyLove = async () => {
         postText = postText.replace(/  /gi, " ");
         
     const agent = new BskyAgent({ service: "https://bsky.social" });
-    
-    console.log(`${process.env.FLUTTERBOT_LOGIN} ${process.env.FLUTTERBOT_APPKEY}`);
     
     await agent.login({
         identifier: process.env.FLUTTERBOT_LOGIN, password: process.env.FLUTTERBOT_APPKEY
