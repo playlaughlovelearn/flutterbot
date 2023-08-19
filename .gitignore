@@ -3,4 +3,5 @@ lastHourlyUpdate
 package-lock.json
 private/*
 node_modules/*
-
+*~
+*.log
