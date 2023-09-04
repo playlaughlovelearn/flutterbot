@@ -1,27 +1,136 @@
 // main.ts - entry point
-
-import * as dotenv from 'dotenv'
-// import blue from '@atproto/api';
-
-//import { BskyAgent } from '@atproto/api'
-
-
-//dotenv.config()
-import * as fs from 'fs';
-import { BskyAgent, RichText } from '@atproto/api';
+import * as fs from 'node:fs';
+//import { BskyAgent, RichText, NotificationNS, AtpSessionEvent, AtpSessionData, AppBskyNotificationListNotifications as bskyNotifs, ComAtprotoServerCreateSession } from '@atproto/api';
+import * as atp from '@atproto/api';
+import { sprintf } from 'sprintf-js';
 import * as tracery from 'tracery-grammar';
+import * as ju from 'jsonutil';
 
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+function sleep(ms : number) {
+return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-const flutterbotLoop = async() => {
+async function flutterbotLoop(whichFunc : Function, sleepTime_ms : number)
+{
     while (true) {
-        hourlyLove();
-        await sleep(1000);
-    }
+        whichFunc();
+        await sleep(sleepTime_ms);
+    }    
 }
+
+function convertToString(x: string) { return x; }
+
+
+//const flutterbotLoop = async(whichFunc, sleepTime_ms) => {
+//    while (true) {
+//        whchFunc();
+//        await sleep(sleepTime_ms);
+//    }
+//}
+
+async function getPost(repository: string, repositoryKey: string, agent : atp.BskyAgent) : Promise<{ uri: string, cid: string, value: atp.AppBskyFeedPost.Record }>
+{
+    //agent.getAuthorFeed({ })
+    return await agent.getPost({repo: repository, rkey: repositoryKey});
+}
+
+function extractKey(uri: string) : string
+{
+    return uri.substring(uri.lastIndexOf('/')+1);
+}
+
+function extractRepo(uri: string) : string
+{
+    uri = uri.replace("at://", "")
+    return uri.substring(0, uri.indexOf("/"));
+}
+
+
+
+const checkFollows = async() => {
+    var sessionData: atp.AtpSessionData = { accessJwt: "", refreshJwt: "", handle: "", did: "", email: ""};
+    const agent = new atp.BskyAgent({
+        service: "https://bsky.social",
+        persistSession: (evt: atp.AtpSessionEvent, sess?: atp.AtpSessionData) => {
+            // store the session-data for reuse
+            sessionData = sess as atp.AtpSessionData;
+        }
+    });
+
+    var login: string = process.env.FLUTTERBOT_LOGIN?.toString() ?? "";
+    var appKey: string = process.env.FLUTTERBOT_APPKEY?.toString() ?? "";
+
+    await agent.login({
+        identifier: login,
+        password: appKey
+    });
+
+    await agent.resumeSession(sessionData);
+    
+    var notifications: atp.AppBskyNotificationListNotifications.Response = await agent.listNotifications({
+        limit: 100,
+        cursor: ""
+    });
+    
+    var cursor = notifications.data.cursor ?? "";
+    //console.log(notifications);
+    for (var i = 0; i < notifications.data.notifications.length; ++i)
+    {
+        console.log("[stringify] " + JSON.stringify(notifications.data.notifications[i]));
+        var n = ju.deepCopy(notifications.data.notifications[i]);
+
+        //var n: atp.AppBskyNotificationListNotifications.Notification = notifications.data.notifications[i];
+        
+        var repoKey : string;
+        var repo : string;
+
+        
+
+        var externalPostUri = (n.reason == "mention") ? n.reasonSubject ?? "" : n.record.reply.root.uri ?? "";
+
+            //console.log(`${n.reasonSubject} repoKey: ${repoKey} repo: ${repo}\n`);
+
+        repoKey = extractKey(externalPostUri);
+        repo = extractRepo(externalPostUri);
+
+        var recordText : string = "";
+        var myPost : atp.AppBskyFeedPost.Record = { did: "", text: "", createdAt: new Date().toString()};
+
+        if (repo != "" && repoKey != "")
+        {
+           myPost = (await getPost(repo, repoKey, agent)).value;
+           //console.log(JSON.stringify(myPost));
+        }
+        var postText: string = myPost.text.replace(/(\r\n|\n|\r)/gm, "");
+   
+        //console.log("--n.author---------------");
+        //console.log(JSON.stringify(n.author));
+        switch (n.reason)
+        {
+            case "follow":
+                console.log(`follow: "${n.author.displayName}" @${n.author.handle} on ${n.indexedAt}`);
+            break;
+            case "like":
+                console.log(`like: "${n.author.displayName}" @${n.author.handle} liked the post "${postText}"`);
+            break;
+            case "mention":
+                console.log(`mention: "${n.author.displayName}" @${n.author.handle} mentioned us in post: "${postText}"`);
+            break;
+            case "quote":
+                var otherPostText: string = n.record.text.replace(/(\r\n|\n|\r)/gm, "");              
+                console.log(`quote: "${n.author.displayName}" @${n.author.handle} quoted our post: "${postText}":\n\t"${otherPostText}"`);
+            break;
+            case "reply":
+                var otherPostText: string = n.record.text.replace(/(\r\n|\n|\r)/gm, "");
+                console.log(`quote: "${n.author.displayName}" @${n.author.handle} replied to our post: "${postText}":\n\t"${otherPostText}"`);
+            break;
+            case "repost":
+                console.log(`quote: "${n.author.displayName}" @${n.author.handle} reposted our post: "${postText}"`);
+            break;
+        };
+    }
+};
 
 const updateFileName = "lastHourlyUpdate";
 const hourlyLove = async () => {
@@ -147,16 +256,16 @@ const hourlyLove = async () => {
     });
 
     var longestPost: number = 0;
-      
+    
     var postText = grammar.flatten("#origin#\n");
 
     while (postText.includes("  "))
         postText = postText.replace(/  /gi, " ");
         
-    const agent = new BskyAgent({ service: "https://bsky.social" });
+    const agent = new atp.BskyAgent({ service: "https://bsky.social" });
     
     await agent.login({
-        identifier: process.env.FLUTTERBOT_LOGIN, password: process.env.FLUTTERBOT_APPKEY
+        identifier: process.env.FLUTTERBOT_LOGIN?.toString() ?? "", password: process.env.FLUTTERBOT_APPKEY?.toString() ?? ""
     });
     
     const postRecord = {
@@ -169,4 +278,34 @@ const hourlyLove = async () => {
     console.log(`Flutterbot Posted:\n ${postText} \n ----------`);
 };
 
-flutterbotLoop();
+const loadUsers = async() => {
+    var sessionData: atp.AtpSessionData = { accessJwt: "", refreshJwt: "", handle: "", did: "", email: ""};
+    const agent = new atp.BskyAgent({
+        service: "https://bsky.social",
+        persistSession: (evt: atp.AtpSessionEvent, sess?: atp.AtpSessionData) => {
+            // store the session-data for reuse
+            sessionData = sess as atp.AtpSessionData;
+        }
+    });
+
+    var login: string = process.env.FLUTTERBOT_LOGIN?.toString() ?? "";
+    var appKey: string = process.env.FLUTTERBOT_APPKEY?.toString() ?? "";
+
+    await agent.login({
+        identifier: login,
+        password: appKey
+    });
+
+    
+    var profileResponse: atp.AppBskyActorGetProfile.Response = await agent.getProfile({ actor: login });
+
+
+
+    await agent.resumeSession(sessionData);
+};
+
+
+
+flutterbotLoop(loadUsers, 30000);
+// flutterbotLoop(hourlyLove, 30000);
+// flutterbotLoop(checkFollows, 30000);
