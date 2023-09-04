@@ -1,0 +1,2 @@
+FLUTTERBOT_LOGIN="$(cat private/flutterbot.login)"
+FLUTTERBOT_APPKEY="$(cat private/flutterbot.appkey)"
